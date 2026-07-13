@@ -35,6 +35,7 @@ llm_config = {
     "config_list": config_list,
     "temperature": 0.1, # Deterministic outputs
     "max_tokens": 4000, # Allow the model to write long, detailed tickets without getting cut off
+    "request_timeout": 300, # Added a much longer timeout (5 minutes) for local models generating huge tickets
 }
 
 # ==============================================================================
