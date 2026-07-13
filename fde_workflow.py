@@ -65,11 +65,11 @@ except Exception:
 # 3. Define the Agents (Human-in-the-Loop enabled)
 # ==============================================================================
 
-# User Proxy (You). Configured to PAUSE and ask for your feedback before the Ticket Agent runs.
+# User Proxy (You).
 user_proxy = autogen.UserProxyAgent(
     name="User_Proxy",
     system_message="A human FDE admin. You provide notes and approve the architecture before tickets are made.",
-    human_input_mode="TERMINATE", # Pauses execution and asks for human input/approval
+    human_input_mode="NEVER", # Changed to NEVER for headless automation. Change to TERMINATE to pause for manual review in terminal.
     max_consecutive_auto_reply=1,
     code_execution_config=False,
 )
