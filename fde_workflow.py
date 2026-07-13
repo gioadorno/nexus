@@ -95,6 +95,30 @@ architect_agent = autogen.AssistantAgent(
     llm_config=llm_config,
 )
 
+# Define the function spec for the LLM
+create_ticket_spec = {
+    "name": "create_linear_ticket",
+    "description": "Creates a ticket in Linear. Call this for every ticket identified.",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "title": {
+                "type": "string",
+                "description": "The title of the ticket"
+            },
+            "description": {
+                "type": "string",
+                "description": "The detailed description of the ticket"
+            }
+        },
+        "required": ["title", "description"]
+    }
+}
+
+# Update Ticket Agent to know about the function
+ticket_agent_llm_config = llm_config.copy()
+ticket_agent_llm_config["functions"] = [create_ticket_spec]
+
 ticket_agent = autogen.AssistantAgent(
     name="Ticket_Agent",
     system_message=(
@@ -102,7 +126,7 @@ ticket_agent = autogen.AssistantAgent(
         "and break them down into Linear tickets. "
         "Call the 'create_linear_ticket' tool for each ticket you identify."
     ),
-    llm_config=llm_config,
+    llm_config=ticket_agent_llm_config,
 )
 
 # ==============================================================================
@@ -126,13 +150,9 @@ def create_linear_ticket(title: str, description: str):
     
     return f"Success: Ticket '{title}' created in Linear."
 
-# Register tool to the LLM agent
-autogen.agentchat.register_function(
-    create_linear_ticket,
-    caller=ticket_agent,
-    executor=user_proxy,
-    name="create_linear_ticket",
-    description="Creates a ticket in Linear. Call this for every ticket identified."
+# Register tool executor to the user proxy
+user_proxy.register_function(
+    function_map={"create_linear_ticket": create_linear_ticket}
 )
 
 # ==============================================================================
