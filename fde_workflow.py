@@ -21,8 +21,9 @@ knowledge_base_file = os.path.join(output_dir, "fde_knowledge_base.md")
 # Load LLM Config
 config_list = [
     {
-        "model": "gpt-4",
-        "api_key": os.environ.get("OPENAI_API_KEY", "YOUR_API_KEY_HERE")
+        "model": "llama3",
+        "api_key": "ollama",
+        "api_base": "http://localhost:11434/v1"
     }
 ]
 
