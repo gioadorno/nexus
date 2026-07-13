@@ -1,8 +1,6 @@
 # AutoGen FDE Workflow Prototype
 
-This repository contains a prototype demonstrating how to use **Microsoft AutoGen** to supercharge your Forward Deployed Engineering (FDE) workflow. 
-
-It takes the concept of your "fde-orchestrator" and simulates a virtual team of AI agents that debate, refine, and execute the conversion of raw meeting notes into engineering tickets.
+> **Portfolio Highlight:** This repository demonstrates Forward Deployed Engineering (FDE) principles utilizing **Microsoft AutoGen**. It simulates a multi-agent AI workflow that accelerates the discovery-to-delivery lifecycle by automating the conversion of raw meeting notes into structured product specs, architectural reviews, and ready-to-work engineering tickets.
 
 ## What is AutoGen?
 
