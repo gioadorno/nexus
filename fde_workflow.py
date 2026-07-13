@@ -85,6 +85,18 @@ discovery_agent = autogen.AssistantAgent(
     llm_config=llm_config,
 )
 
+enrichment_agent = autogen.AssistantAgent(
+    name="Enrichment_Agent",
+    system_message=(
+        "You are an expert FDE Note Taker and Technical Analyst. "
+        "Take raw, vague meeting notes and expand them into a highly comprehensive, professional meeting overview. "
+        "Extrapolate reasonable business context, identify implied stakeholders, and expand on the technical hints. "
+        "Output ONLY the comprehensive markdown overview."
+        + existing_rules_prompt
+    ),
+    llm_config=llm_config,
+)
+
 architect_agent = autogen.AssistantAgent(
     name="Architect_Agent",
     system_message=(
@@ -123,8 +135,14 @@ ticket_agent_llm_config["functions"] = [create_ticket_spec]
 ticket_agent = autogen.AssistantAgent(
     name="Ticket_Agent",
     system_message=(
-        "You are an Agile Delivery Manager. You take the Product Spec and the Architect's constraints, "
-        "and break them down into Linear tickets. "
+        "You are a Senior Agile Delivery Manager. You take the Product Spec and the Architect's constraints, "
+        "and break them down into highly comprehensive Linear tickets. "
+        "Even if the original notes were brief, you MUST extrapolate and flesh out each ticket. "
+        "Every ticket MUST include:\n"
+        "1) A detailed User Story (As a... I want to... So that...)\n"
+        "2) Technical Implementation Steps\n"
+        "3) Strict Acceptance Criteria in Given/When/Then (Gherkin) format\n"
+        "4) Potential Blockers or Edge Cases.\n"
         "IMPORTANT: You MUST use the 'create_linear_ticket' function call to create each ticket. "
         "Do not just list the tickets in text. Explicitly output the function call JSON for each ticket."
     ),
@@ -176,12 +194,37 @@ if __name__ == "__main__":
         f.write(f"# FDE Workflow Plan: {base_name}\n\n")
 
     # --------------------------------------------------------------------------
+    # STEP 0: Note Enrichment
+    # --------------------------------------------------------------------------
+    print("\n--- STEP 0: Enriching Raw Notes ---")
+    user_proxy.initiate_chat(
+        enrichment_agent,
+        message=f"Please expand these raw meeting notes into a comprehensive, professional meeting overview:\n\n{raw_meeting_notes}"
+    )
+    enriched_notes = user_proxy.last_message(enrichment_agent)["content"]
+
+    # Append the enriched notes back to the original input file
+    try:
+        with open(input_path, 'r') as f:
+            content = f.read()
+        
+        # Don't append multiple times if we run this on the same file over and over
+        if "## Comprehensive Overview (Auto-Generated)" not in content:
+            with open(input_path, 'a') as f:
+                f.write("\n\n---\n## Comprehensive Overview (Auto-Generated)\n\n")
+                f.write(enriched_notes)
+            print(f"\n[Success] Appended Comprehensive Overview to {input_path}")
+    except Exception as e:
+        print(f"[Warning] Could not append to original file: {e}")
+
+    # --------------------------------------------------------------------------
     # STEP 1: Discovery (Product Spec)
     # --------------------------------------------------------------------------
     print("\n--- STEP 1: Generating Product Spec ---")
     user_proxy.initiate_chat(
         discovery_agent,
-        message=f"Please process these raw notes into a comprehensive Product Spec.\n\nNOTES:\n{raw_meeting_notes}"
+        message=f"Please process this comprehensive meeting overview into a detailed Product Spec.\n\nOVERVIEW:\n{enriched_notes}",
+        clear_history=True
     )
     product_spec = user_proxy.last_message(discovery_agent)["content"]
     
