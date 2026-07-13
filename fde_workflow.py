@@ -125,7 +125,8 @@ ticket_agent = autogen.AssistantAgent(
     system_message=(
         "You are an Agile Delivery Manager. You take the Product Spec and the Architect's constraints, "
         "and break them down into Linear tickets. "
-        "Call the 'create_linear_ticket' tool for each ticket you identify."
+        "IMPORTANT: You MUST use the 'create_linear_ticket' function call to create each ticket. "
+        "Do not just list the tickets in text. Explicitly output the function call JSON for each ticket."
     ),
     llm_config=ticket_agent_llm_config,
 )
@@ -157,10 +158,10 @@ user_proxy.register_function(
 )
 
 # ==============================================================================
-# 5. Run the Workflow!
+# 5. Run the Workflow! (Sequential Pipeline)
 # ==============================================================================
 if __name__ == "__main__":
-    print(f"🚀 Initiating FDE AutoGen Workflow for: {input_path}\n")
+    print(f"🚀 Initiating FDE Sequential Pipeline for: {input_path}\n")
     
     # Read the input file
     try:
@@ -174,18 +175,35 @@ if __name__ == "__main__":
     with open(output_plan_file, "w") as f:
         f.write(f"# FDE Workflow Plan: {base_name}\n\n")
 
-    groupchat = autogen.GroupChat(
-        agents=[user_proxy, discovery_agent, architect_agent, ticket_agent],
-        messages=[],
-        max_round=6
-    )
-
-    manager = autogen.GroupChatManager(groupchat=groupchat, llm_config=llm_config)
-
-    # Start Chat
+    # --------------------------------------------------------------------------
+    # STEP 1: Discovery (Product Spec)
+    # --------------------------------------------------------------------------
+    print("\n--- STEP 1: Generating Product Spec ---")
     user_proxy.initiate_chat(
-        manager,
-        message=f"Please process these raw notes into a spec, stress-test the architecture, and generate Linear tickets.\n\nNOTES:\n{raw_meeting_notes}"
+        discovery_agent,
+        message=f"Please process these raw notes into a comprehensive Product Spec.\n\nNOTES:\n{raw_meeting_notes}"
+    )
+    product_spec = user_proxy.last_message(discovery_agent)["content"]
+    
+    # --------------------------------------------------------------------------
+    # STEP 2: Architecture Review
+    # --------------------------------------------------------------------------
+    print("\n--- STEP 2: Stress-Testing Architecture ---")
+    user_proxy.initiate_chat(
+        architect_agent,
+        message=f"Here is the Product Spec. Please review it, stress-test the architecture, and output technical constraints.\n\nSPEC:\n{product_spec}",
+        clear_history=True
+    )
+    architecture_review = user_proxy.last_message(architect_agent)["content"]
+
+    # --------------------------------------------------------------------------
+    # STEP 3: Ticket Generation
+    # --------------------------------------------------------------------------
+    print("\n--- STEP 3: Generating Linear Tickets ---")
+    user_proxy.initiate_chat(
+        ticket_agent,
+        message=f"Here is the Product Spec and Architect constraints. Please break them down into tickets and CALL the 'create_linear_ticket' tool for EACH ticket.\n\nSPEC:\n{product_spec}\n\nCONSTRAINTS:\n{architecture_review}",
+        clear_history=True
     )
 
     # Sync VectorDB to Markdown at the end of the run
