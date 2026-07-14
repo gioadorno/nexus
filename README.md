@@ -1,36 +1,53 @@
 # FDE AutoGen Orchestrator & CLI
 
-> **Portfolio Highlight:** This repository demonstrates Forward Deployed Engineering (FDE) principles, Developer Experience (DevEx), and LLM Orchestration. It simulates a multi-agent AI workflow wrapped in a custom **Go CLI (Cobra)**. It accelerates the discovery-to-delivery lifecycle by automating the conversion of raw meeting notes into structured product specs, architectural reviews, and ready-to-work engineering tickets.
+> **Highlight:** This repository demonstrates Forward Deployed Engineering (FDE) principles, Developer Experience (DevEx), and LLM Orchestration. It simulates a multi-agent AI workflow wrapped in a custom **Go CLI (Cobra)**. It accelerates the discovery-to-delivery lifecycle by automating the conversion of raw meeting notes into structured product specs, and autonomously scaffolding code across frontend and backend monorepos.
 
-## Features
+## Core Capabilities
 
-1. **Custom Go CLI (`fde`):** A cross-platform Go wrapper built with Cobra that securely invokes the Python AutoGen pipeline. It provides a flawless developer experience, allowing the pipeline to be executed globally from any directory.
-2. **LLM Observability (AgentOps):** Fully instrumented with AgentOps to trace token consumption, agent logic, and execution times, ensuring the AI system is auditable and production-ready.
-3. **Dynamic Input/Output:** Point the CLI at any Markdown file containing meeting notes. It generates a clean `[File_Name]_FDE_Plan.md` file in the same directory.
-4. **Human-in-the-Loop:** The script pauses before generating tickets, allowing the human FDE to inject feedback or correct the architecture.
-5. **Linear API Tool with Fallback:** The Ticket Agent calls a Python function to create tickets in Linear. If the API key is missing or fails, it gracefully falls back to appending the tickets directly into your local Markdown plan.
-6. **Hybrid Semantic Memory (ChromaDB):** Agents learn from past executions using a local ChromaDB vector database. A post-execution hook extracts these learned rules and writes them to a visible `fde_knowledge_base.md` file so you can audit the AI's "brain."
+### 1. The FDE Meeting-to-Ticket Pipeline
 
-## How to Use It
+- **Command:** `fde process <notes.md>`
+- **Workflow:** Enriches raw meeting notes -> Drafts Product Spec -> Stress-tests Architecture -> Generates Gherkin-style Linear Tickets.
+- **Semantic Memory:** Utilizes a local ChromaDB vector database to learn from past executions and store architectural rules in a visible `fde_knowledge_base.md`.
+
+### 2. The Dual-Monorepo Scaffolder
+
+- **Command:** `fde scaffold <Ticket-ID>`
+- **Workflow:** Fetches ticket details from the Linear API and orchestrates a `Backend_Agent` and `Frontend_Agent` to generate cross-repository boilerplate (gRPC, Protobufs, Go, and Angular).
+- **Airgap Safety:** Code is generated into a safe, local `[Ticket-ID]_Scaffold/` staging directory. The AI is strictly prohibited from touching the actual Git repositories.
+
+### 3. The Autonomous Bazel Build & Fix Loop
+
+- **Command:** `fde apply <Staging-Directory>`
+- **Workflow:**
+  1. Prompts the user for review and approval of the staged files.
+  2. Copies the files into the actual `client-systems` and `monkey-see` workspaces.
+  3. Executes `bazel run //:gazelle` and `bazel build //...`.
+  4. **Self-Healing:** If the Bazel build fails, the Go CLI automatically deletes the copied files to keep the workspace pristine, captures the compiler error log, and passes it back to an AutoGen `Fixer_Agent`. The AI diagnoses the error, rewrites the staged files, and prepares for another apply.
+
+## Getting Started
 
 ### 1. Build the Go CLI
+
 ```bash
 cd cli
+go mod tidy
 go build -o fde
 mv fde ~/.local/bin/  # Or anywhere in your PATH
 ```
 
-### 2. Configure Your LLM & Observability
-Export your API Keys (or edit `fde_workflow.py` to point to a local Ollama model):
+### 2. Configure Environment
+
 ```bash
 export OPENAI_API_KEY="sk-your-actual-api-key"
+export LINEAR_API_KEY="lin_api_your_key"
 export AGENTOPS_API_KEY="your-agentops-key" # Optional for tracing
 ```
 
-### 3. Run the Engine
-Pass the path to your meeting notes directly via the `fde` command:
+### 3. Run the Tools
+
 ```bash
 fde process ~/Obsidian/Meetings/Acme_Kickoff.md
+fde scaffold CMS-4953
+fde apply ./CMS-4953_Scaffold
 ```
-
-Watch the terminal as the Discovery Agent, Architect Agent, and Ticket Agent debate and build your plan!
