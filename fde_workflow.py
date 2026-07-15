@@ -260,6 +260,7 @@ if __name__ == "__main__":
         parse_and_create_tickets(final_tickets)
         
         with open(output_plan_file, "a") as f:
+            f.write(final_tickets)
             f.write("\n\n---\n*End of FDE Plan*\n")
     except Exception as e:
         print(f"[Warning] Could not append final tickets to plan file: {e}")
