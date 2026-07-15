@@ -25,16 +25,17 @@ knowledge_base_file = os.path.join(output_dir, "fde_knowledge_base.md")
 # Load LLM Config
 config_list = [
     {
-        "model": "llama3",
-        "api_key": "ollama",
-        "api_base": "http://localhost:11434/v1"
+        "model": "gemini-3.1-pro-preview",
+        "api_type": "google",
+        "project": os.environ.get("GOOGLE_VERTEX_PROJECT", "extreme-karma-gm"),
+        "location": os.environ.get("GOOGLE_VERTEX_LOCATION", "global")
     }
 ]
 
 llm_config = {
     "config_list": config_list,
     "temperature": 0.1, # Deterministic outputs
-    "max_tokens": 4000, # Allow the model to write long, detailed tickets without getting cut off
+    "max_tokens": 8000, # Allow the model to write long, detailed tickets without getting cut off
     "request_timeout": 300, # Added a much longer timeout (5 minutes) for local models generating huge tickets
 }
 
@@ -76,7 +77,7 @@ user_proxy = autogen.UserProxyAgent(
     name="User_Proxy",
     system_message="A human FDE admin. You provide notes and approve the architecture before tickets are made.",
     human_input_mode="NEVER", # Changed to NEVER for headless automation. Change to TERMINATE to pause for manual review in terminal.
-    max_consecutive_auto_reply=1,
+    max_consecutive_auto_reply=0,
     code_execution_config=False,
 )
 
@@ -114,45 +115,22 @@ architect_agent = autogen.AssistantAgent(
     llm_config=llm_config,
 )
 
-# Define the function spec for the LLM
-create_ticket_spec = {
-    "name": "create_linear_ticket",
-    "description": "Creates a ticket in Linear. Call this for every ticket identified.",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "title": {
-                "type": "string",
-                "description": "The title of the ticket"
-            },
-            "description": {
-                "type": "string",
-                "description": "The detailed description of the ticket"
-            }
-        },
-        "required": ["title", "description"]
-    }
-}
-
-# Update Ticket Agent to know about the function
-ticket_agent_llm_config = llm_config.copy()
-ticket_agent_llm_config["functions"] = [create_ticket_spec]
-
 ticket_agent = autogen.AssistantAgent(
     name="Ticket_Agent",
     system_message=(
-        "You are a Senior Agile Delivery Manager. You take the Product Spec and the Architect's constraints, "
+        "You are a Senior Agile Delivery Manager. You take the Product Spec and constraints, "
         "and break them down into highly comprehensive Linear tickets. "
-        "Even if the original notes were brief, you MUST extrapolate and flesh out each ticket. "
-        "Every ticket MUST include:\n"
-        "1) A detailed User Story (As a... I want to... So that...)\n"
-        "2) Technical Implementation Steps\n"
-        "3) Strict Acceptance Criteria in Given/When/Then (Gherkin) format\n"
-        "4) Potential Blockers or Edge Cases.\n"
-        "IMPORTANT: You MUST use the 'create_linear_ticket' function call to create each ticket. "
-        "Do not just list the tickets in text. Explicitly output the function call JSON for each ticket."
+        "You MUST output the tickets in pure Markdown format. "
+        "For EACH ticket, use EXACTLY this format:\n\n"
+        "=== TICKET ===\n"
+        "TITLE: [Insert clear ticket title]\n"
+        "DESCRIPTION:\n"
+        "**User Story:** As a... I want to... So that...\n\n"
+        "**Technical Steps:**\n- Step 1\n- Step 2\n\n"
+        "**Acceptance Criteria (Gherkin):**\nGiven... When... Then...\n\n"
+        "**Blockers & Edge Cases:**\n- Blocker 1\n\n"
     ),
-    llm_config=ticket_agent_llm_config,
+    llm_config=llm_config,
 )
 
 # ==============================================================================
@@ -176,10 +154,28 @@ def create_linear_ticket(title: str, description: str):
     
     return f"Success: Ticket '{title}' created in Linear."
 
-# Register tool executor to the user proxy
-user_proxy.register_function(
-    function_map={"create_linear_ticket": create_linear_ticket}
-)
+def parse_and_create_tickets(raw_output):
+    """Parses the Markdown output and programmatically creates tickets."""
+    tickets = raw_output.split('=== TICKET ===')
+    for ticket_text in tickets:
+        ticket_text = ticket_text.strip()
+        if not ticket_text:
+            continue
+        
+        title = "Untitled Ticket"
+        description = ticket_text
+        
+        lines = ticket_text.split('\n')
+        for i, line in enumerate(lines):
+            if line.upper().startswith('TITLE:'):
+                title = line[6:].strip()
+                desc_body = '\n'.join(lines[i+1:]).strip()
+                if desc_body.upper().startswith('DESCRIPTION:'):
+                    desc_body = desc_body[12:].strip()
+                description = desc_body
+                break
+        
+        create_linear_ticket(title, description)
 
 # ==============================================================================
 # 5. Run the Workflow! (Sequential Pipeline)
@@ -251,16 +247,19 @@ if __name__ == "__main__":
     print("\n--- STEP 3: Generating Linear Tickets ---")
     user_proxy.initiate_chat(
         ticket_agent,
-        message=f"Here is the Product Spec and Architect constraints. Please break them down into tickets and CALL the 'create_linear_ticket' tool for EACH ticket.\n\nSPEC:\n{product_spec}\n\nCONSTRAINTS:\n{architecture_review}",
+        message=f"Here is the Product Spec and Architect constraints. Please break them down into tickets.\n\nSPEC:\n{product_spec}\n\nCONSTRAINTS:\n{architecture_review}",
         clear_history=True
     )
     final_tickets = user_proxy.last_message(ticket_agent)["content"]
 
-    # Guarantee the tickets are saved to the plan file, even if tool calling fails on local models
+    # Parse and save the tickets programmatically
     try:
         with open(output_plan_file, "a") as f:
             f.write("\n\n## Generated Linear Tickets\n\n")
-            f.write(final_tickets)
+        
+        parse_and_create_tickets(final_tickets)
+        
+        with open(output_plan_file, "a") as f:
             f.write("\n\n---\n*End of FDE Plan*\n")
     except Exception as e:
         print(f"[Warning] Could not append final tickets to plan file: {e}")

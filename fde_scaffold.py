@@ -20,9 +20,16 @@ def fetch_ticket_context(ticket_id):
     """
 
 llm_config = {
-    "config_list": [{"model": "llama3", "api_key": "ollama", "api_base": "http://localhost:11434/v1"}],
+    "config_list": [
+        {
+            "model": "gemini-3.1-pro-preview",
+            "api_type": "google",
+            "project": os.environ.get("GOOGLE_VERTEX_PROJECT", "extreme-karma-gm"),
+            "location": os.environ.get("GOOGLE_VERTEX_LOCATION", "global")
+        }
+    ],
     "temperature": 0.1,
-    "max_tokens": 4000,
+    "max_tokens": 8000,
 }
 
 user_proxy = autogen.UserProxyAgent(
