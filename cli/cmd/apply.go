@@ -82,7 +82,7 @@ func handleBazelFailure(logName string, err error) {
 	fmt.Println("Passing compiler error to AutoGen Fixer Agent for self-healing...\n")
 	
 	homeDir, _ := os.UserHomeDir()
-	projectDir := filepath.Join(homeDir, "fde-autogen")
+	projectDir := filepath.Join(homeDir, "nexus")
 	pythonBin := filepath.Join(projectDir, "venv", "bin", "python")
 	scriptPath := filepath.Join(projectDir, "fde_scaffold.py")
 

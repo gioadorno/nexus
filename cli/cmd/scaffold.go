@@ -18,7 +18,7 @@ var scaffoldCmd = &cobra.Command{
 		fmt.Printf("Starting Dual-Repo Scaffold for Ticket: %s\n", ticket)
 		
 		homeDir, _ := os.UserHomeDir()
-		projectDir := filepath.Join(homeDir, "fde-autogen")
+		projectDir := filepath.Join(homeDir, "nexus")
 		pythonBin := filepath.Join(projectDir, "venv", "bin", "python")
 		scriptPath := filepath.Join(projectDir, "fde_scaffold.py")
 

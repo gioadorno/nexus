@@ -27,7 +27,7 @@ var processCmd = &cobra.Command{
 		}
 
 		homeDir, _ := os.UserHomeDir()
-		projectDir := filepath.Join(homeDir, "fde-autogen")
+		projectDir := filepath.Join(homeDir, "nexus")
 		pythonBin := filepath.Join(projectDir, "venv", "bin", "python")
 		scriptPath := filepath.Join(projectDir, "fde_workflow.py")
 

@@ -18,7 +18,7 @@ var clearCmd = &cobra.Command{
 	Short: "Clear the semantic memory database",
 	Run: func(cmd *cobra.Command, args []string) {
 		homeDir, _ := os.UserHomeDir()
-		dbPath := filepath.Join(homeDir, "fde-autogen", "chroma_fde_memory")
+		dbPath := filepath.Join(homeDir, "nexus", "chroma_fde_memory")
 		
 		fmt.Printf("Clearing memory at: %s\n", dbPath)
 		err := os.RemoveAll(dbPath)
