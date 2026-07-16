@@ -1,5 +1,8 @@
 # Nexus Orchestrator # FDE AutoGen Orchestrator & CLI CLI
 
+> 📖 **Real-World Usage:** Check out [EXAMPLES.md](EXAMPLES.md) for practical FDE workflows and terminal outputs.
+
+
 > **Highlight:** This repository demonstrates Forward Deployed Engineering (FDE) principles, Developer Experience (DevEx), and LLM Orchestration. It simulates a multi-agent AI workflow wrapped in a custom **Go CLI (Cobra)**. It accelerates the discovery-to-delivery lifecycle by automating the conversion of raw meeting notes into structured product specs, and autonomously scaffolding code across frontend and backend monorepos.
 
 ## Core Capabilities
