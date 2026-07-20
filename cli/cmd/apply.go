@@ -12,18 +12,24 @@ import (
 )
 
 var applyCmd = &cobra.Command{
-	Use:   "apply [staging-directory]",
-	Short: "Safely copy staged scaffold files and execute Bazel build verification",
+	Use:   "apply [ticket-slug]",
+	Short: "Safely copy worktree scaffold files and execute Bazel build verification",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		stagingDir := args[0]
-		absStaging, err := filepath.Abs(stagingDir)
+		ticketSlug := args[0]
+		worktreeDir := filepath.Join(".fde", "worktrees", ticketSlug)
+		absWorktree, err := filepath.Abs(worktreeDir)
 		if err != nil {
-			fmt.Printf("Error resolving staging path: %v\n", err)
+			fmt.Printf("Error resolving worktree path: %v\n", err)
 			os.Exit(1)
 		}
 
-		fmt.Printf("Ready to apply scaffold from: %s\n", absStaging)
+		if _, err := os.Stat(absWorktree); os.IsNotExist(err) {
+			fmt.Printf("Error: Worktree lane %s does not exist. Did you run scaffold first?\n", absWorktree)
+			os.Exit(1)
+		}
+
+		fmt.Printf("Ready to apply scaffold from: %s\n", absWorktree)
 		fmt.Printf("This will copy files to your ~/workspace/ monorepos.\n\n")
 		
 		fmt.Print("Do you want to proceed? [y/N]: ")
@@ -53,7 +59,7 @@ var applyCmd = &cobra.Command{
 		err = gazelleCmd.Run()
 		if err != nil {
 			// Expected if bazel isn't globally installed or setup perfectly in this env
-			handleBazelFailure("gazelle_error.log", err)
+			handleBazelFailure(ticketSlug, "gazelle_error.log", err)
 			return
 		}
 
@@ -63,7 +69,7 @@ var applyCmd = &cobra.Command{
 		buildCmd.Dir = clientSystemsDir
 		err = buildCmd.Run()
 		if err != nil {
-			handleBazelFailure("build_error.log", err)
+			handleBazelFailure(ticketSlug, "build_error.log", err)
 			return
 		}
 
@@ -71,7 +77,7 @@ var applyCmd = &cobra.Command{
 	},
 }
 
-func handleBazelFailure(logName string, err error) {
+func handleBazelFailure(ticketSlug string, logName string, err error) {
 	fmt.Printf("\n\u274C BAZEL BUILD FAILED: %v\n", err)
 	fmt.Println("Rolling back copied files to keep workspace pristine...")
 	
@@ -86,7 +92,7 @@ func handleBazelFailure(logName string, err error) {
 	pythonBin := filepath.Join(projectDir, "venv", "bin", "python")
 	scriptPath := filepath.Join(projectDir, "fde_scaffold.py")
 
-	execCmd := exec.Command(pythonBin, scriptPath, "--fix", "--error-log", logPath)
+	execCmd := exec.Command(pythonBin, scriptPath, "--fix", "--error-log", logPath, "--ticket", ticketSlug)
 	execCmd.Stdout = os.Stdout
 	execCmd.Stderr = os.Stderr
 	execCmd.Stdin = os.Stdin
